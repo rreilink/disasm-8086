@@ -1,6 +1,11 @@
-from optable import *
 import struct
 import collections
+
+
+if __package__:
+    from .optable import *
+else:
+    from optable import *
 
 class Source:
     def __init__(self, data, base_address = 0):
@@ -24,7 +29,10 @@ class Source:
         r = self._data[self._pos:self._pos+n]
         self._pos+=n
         if len(r)<n:
-            raise StopIteration
+            raise StopIteration(
+                f'read of {n} bytes from address '
+                f'0x{self._pos+self._base_address:x} is out of range '
+                f'of the binary file')
             
         return r
         
@@ -53,7 +61,13 @@ class Source:
         start and stop address
         '''
         start, stop, stride = slice.indices(len(self._data)+self._base_address)
-        return self._data[start-self._base_address:stop-self._base_address:stride]
+        start_idx=start - self._base_address
+        stop_idx=stop - self._base_address
+        if start_idx<0 or stop_idx>=len(self._data):
+            raise IndexError(
+                f'access to [0x{start:x}-0x{stop-1:x}] is '
+                f'out of range of the binary file')
+        return self._data[start_idx:stop_idx]
 
 
 
@@ -212,7 +226,7 @@ class Disassembler:
         '''
         dataStr = ' '.join('%02x' % d for d in data)
             
-        return f'{address:08x} {dataStr:23s} {(prefix + mnemonic):6s} {arguments}'.rstrip()
+        return f'{address:08x} {dataStr:26s} {(prefix + mnemonic):6s} {arguments}'.rstrip()
     
     def disassemble(self, start_address):
         '''
